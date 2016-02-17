@@ -110,7 +110,7 @@ clean = True
 #######################################
 ## Define usage text
 def usage(exval=1):
-    print("Usage: %s [-p] [-e /path/to/exclude_file] [-E] [-a] [-r] [-l] [-D] [-C] [-v]" % sys.argv[0])
+    print("Usage: %s [-p] [-e /path/to/exclude_file] [-E] [-a] [-r] [-l] [-D] [-C] [-v] [-h]" % sys.argv[0])
     print("")
     print("-p                          => POOL MODE: Apply Patches to the whole Pool. It must be done on the Pool Master.")
     print("-e /path/to/exclude_file    => Allows user to define a Python List of Patches NOT to install.")
