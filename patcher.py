@@ -109,7 +109,7 @@ clean = True
 ### USAGE + ARGUMENT HANDLING START ###
 #######################################
 ## Define usage text
-def usage():
+def usage(exval=1):
     print("Usage: %s [-p] [-e /path/to/exclude_file] [-E] [-a] [-r] [-l] [-D] [-C] [-v]" % sys.argv[0])
     print("")
     print("-p                          => POOL MODE: Apply Patches to the whole Pool. It must be done on the Pool Master.")
@@ -121,7 +121,8 @@ def usage():
     print("-D                          => Enable DEBUG output")
     print("-C                          => *Disable* the automatic cleaning of patches on success.")
     print("-v                          => Display Version and Exit.")
-    sys.exit(1)
+    print("-h                          => Display this message and Exit.")
+    sys.exit(exval)
 
 
 # Parse Args:
@@ -135,6 +136,9 @@ for o, a in myopts:
         # Version print and Quit.
         print("Citrix_XenServer_Patcher_Version: " + str(version))
         sys.exit(0)
+    if o == '-h':
+        # Version print and Quit.
+        usage(0)
     elif o == '-e':
         # Set the exclusion file
         exclude_file = str(a)
@@ -679,7 +683,7 @@ if debug == True:
 try:
     t = open(tmpfile, "wb")
 except IOError:
-    print("Error Opening " + relver)
+    print("Error Opening " + tmpfile)
     try:
         t.close()
     except NameError:
@@ -698,6 +702,13 @@ if debug == True:
 # Parse XML to Vars
 xmldoc = minidom.parse(tmpfile)
 xmlpatches = xmldoc.getElementsByTagName('patch')
+
+# remove tmp file
+if os.path.exists(tmpfile):
+    try:
+        os.remove(tmpfile)
+    except OSError, e:
+        print ("Error: %s - %s." % (e.tmpfile,e.strerror))
 
 #Convert xsver to a string for use in regex
 xsverstr = str(xsver)
@@ -930,3 +941,4 @@ else:
     xetoolstack_restart()
 
 print("PATCHING COMPLETED")
+
