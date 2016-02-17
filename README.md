@@ -107,7 +107,7 @@ chmod a+x patch_checker.py
 ## Usage:
 
 ```bash
-Usage: ./check_patches.py [-e /path/to/exclude_file] [-E] [-u <username>] [-p <password>] [-n] [-D] [-v] [-h]
+Usage: ./patch_checker.py [-e /path/to/exclude_file] [-E] [-u <username>] [-p <password>] [-n] [-D] [-v] [-h]
 
 -e /path/to/exclude_file    => Allows user to define a Python List of Patches NOT to install.
 -E                          => *Disable* the loading of auto-exclusions list from Github
