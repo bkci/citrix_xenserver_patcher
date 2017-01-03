@@ -38,6 +38,9 @@ chmod a+x patcher.py
 
 * Run the patcher, and follow the prompts :)
 
+## Citrix Account Login
+As of patch XS65ESP1046, Citrix appears to be requiring an account login. This version will support authenticating against the Citrix site and then downloading patches. Login credentials can be set on the command line or placed permanently within the patcher.py file. The user variables are cuser and cpass.
+
 ## A Note On Exclusions
 Exclusions are necessary, particularly when Citrix release a Service Pack update which combines previously released patches (be sure to check the "to-be-installed" list for any "SP" patches, and report them if they're new!)
 
@@ -67,7 +70,7 @@ Example on using this flag:
 * The code supports a few other arguments too:
 
 ```bash
-Usage: ./patcher.py [-p] [-e /path/to/exclude_file] [-E] [-a] [-r] [-l] [-D] [-C] [-v] [-h]
+Usage: ./patcher.py [-p] [-e /path/to/exclude_file] [-E] [-a] [-r] [-l] [-U <username>] [-P <password>] [-D] [-C] [-v] [-h]
 
 -p                          => POOL MODE: Apply Patches to the whole Pool. It must be done on the Pool Master.
 -e /path/to/exclude_file    => Allows user to define a Python List of Patches NOT to install.
@@ -75,6 +78,8 @@ Usage: ./patcher.py [-p] [-e /path/to/exclude_file] [-E] [-a] [-r] [-l] [-D] [-C
 -a                          => Enables auto-apply of patches - will NOT reboot host without below option.
 -r                          => Enables automatic reboot of Host on completion of patching without prompts.
 -l                          => Just list available patches, and Exit. Cannot be used with '-a' or '-r'.
+-U <username>               => Citrix account username
+-P <password>               => Citrix account password
 -D                          => Enable DEBUG output
 -C                          => *Disable* the automatic cleaning of patches on success.
 -v                          => Display Version and Exit.

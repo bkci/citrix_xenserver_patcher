@@ -27,7 +27,7 @@ version = "1.5.2"
 ############################
 ### IMPORT MODULES START ###
 ############################
-import sys, re, subprocess, os, getopt, time, pprint, signal
+import sys, re, subprocess, os, getopt, time, pprint, signal, base64, cookielib, urllib2, urllib
 from xml.dom import minidom
 from operator import itemgetter
 try:
@@ -72,6 +72,10 @@ patchxmlurl = 'http://updates.xensource.com/XenServer/updates.xml'
 autourl = 'https://raw.githubusercontent.com/dalgibbard/citrix_xenserver_patcher/master/exclusions'
 # Where we can store some temporary data
 tmpfile = '/var/tmp/xml.tmp'
+# Citrix Login credentials
+cuser = ''
+cpass = ''
+
 ##########################
 ### USER VARIABLES END ###
 ##########################
@@ -101,6 +105,10 @@ reboot = 0
 debug = False
 # Clean out installed patches by default
 clean = True
+# Citrix Login URLs
+citrix_login_url = 'https://www.citrix.com/login/bridge?url=https%3A%2F%2Fsupport.citrix.com%2Farticle%2FCTX219378'
+citrix_err_url = 'https://www.citrix.com/login?url=https%3A%2F%2Fsupport.citrix.com%2Farticle%2FCTX219378&err=y'
+citrix_authentication_url = 'https://identity.citrix.com/Utility/STS/Sign-In'
 ######################################
 ### SYSTEM / INITIAL VARIABLES END ###
 ######################################
@@ -110,7 +118,7 @@ clean = True
 #######################################
 ## Define usage text
 def usage(exval=1):
-    print("Usage: %s [-p] [-e /path/to/exclude_file] [-E] [-a] [-r] [-l] [-D] [-C] [-v] [-h]" % sys.argv[0])
+    print("Usage: %s [-p] [-e /path/to/exclude_file] [-E] [-a] [-r] [-l] [-U <username>] [-P <password>] [-D] [-C] [-v]" % sys.argv[0])
     print("")
     print("-p                          => POOL MODE: Apply Patches to the whole Pool. It must be done on the Pool Master.")
     print("-e /path/to/exclude_file    => Allows user to define a Python List of Patches NOT to install.")
@@ -119,6 +127,8 @@ def usage(exval=1):
     print("-r                          => Enables automatic reboot of Host on completion of patching without prompts.")
     print("-l                          => Just list available patches, and Exit. Cannot be used with '-a' or '-r'.")
     print("-D                          => Enable DEBUG output")
+    print("-U <username>               => Citrix account username")
+    print("-P <password>               => Citrix account password")
     print("-C                          => *Disable* the automatic cleaning of patches on success.")
     print("-v                          => Display Version and Exit.")
     print("-h                          => Display this message and Exit.")
@@ -127,7 +137,7 @@ def usage(exval=1):
 
 # Parse Args:
 try:
-    myopts, args = getopt.getopt(sys.argv[1:],"vhpe:EalrDC")
+    myopts, args = getopt.getopt(sys.argv[1:],"vhpe:EalrUPDC")
 except getopt.GetoptError:
     usage()
 
@@ -193,6 +203,12 @@ for o, a in myopts:
             print("Cannot use 'list' with 'auto' or 'autoreboot' arguments.")
             print("")
             usage()
+    elif o == '-U':
+        # Set citrix user
+        cuser = str(a)
+    elif o == '-P':
+        # set citrix pass
+        cpass = str(a)
     elif o == '-C':
         clean = False
     elif o == '-D':
@@ -267,6 +283,42 @@ def which(program):
                 return exe_file
 
     return None
+
+def login():
+    print("")
+    print("Logging in")
+    # Store the cookies and create an opener that will hold them
+    cj = cookielib.CookieJar()
+    opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
+
+    # Add our headers
+    opener.addheaders = [('User-agent', 'XenPatch')]
+
+    # Install our opener (note that this changes the global opener to the one
+    # we just made, but you can also just call opener.open() if you want)
+    urllib2.install_opener(opener)
+
+    # Input parameters we are going to send
+    payload = {
+      'returnURL'  : citrix_login_url,
+      'errorURL'   : citrix_err_url,
+      'persistent' : '1',
+      'username'   : cuser,
+      'password'   : cpass
+      }
+
+    # Use urllib to encode the payload
+    data = urllib.urlencode(payload)
+
+    # Build our Request object (supplying 'data' makes it a POST)
+    req = urllib2.Request(citrix_authentication_url, data)
+    try:
+        u = urllib2.urlopen(req)
+	contents = u.read()
+    except Exception, err:
+        print("...ERR: Failed to Login!")
+        print("Error: " + str(err))
+        sys.exit(3)
 
 def download_patch(patch_url):
     url = patch_url
@@ -683,7 +735,7 @@ if debug == True:
 try:
     t = open(tmpfile, "wb")
 except IOError:
-    print("Error Opening " + tmpfile)
+    print("Error Opening " + relver)
     try:
         t.close()
     except NameError:
@@ -702,13 +754,6 @@ if debug == True:
 # Parse XML to Vars
 xmldoc = minidom.parse(tmpfile)
 xmlpatches = xmldoc.getElementsByTagName('patch')
-
-# remove tmp file
-if os.path.exists(tmpfile):
-    try:
-        os.remove(tmpfile)
-    except OSError, e:
-        print ("Error: %s - %s." % (e.tmpfile,e.strerror))
 
 #Convert xsver to a string for use in regex
 xsverstr = str(xsver)
@@ -834,12 +879,14 @@ if not exclusions == False:
     for namelabel in exclusions:
         listremoveexclude(namelabel)
 
-# Load the AutoExcludes:
-autoexclusions = getAutoExcludeList(autourl)
-## Patches loaded in from the auto-exclude file to be removed from the list next:    
-if not autoexclusions == False:
-    for namelabel in autoexclusions:
-        listremoveexclude(namelabel)
+if autoExclude:
+    # Load the AutoExcludes:
+    autoexclusions = getAutoExcludeList(autourl)
+
+    ## Patches loaded in from the auto-exclude file to be removed from the list next:    
+    if not autoexclusions == False:
+        for namelabel in autoexclusions:
+            listremoveexclude(namelabel)
         
 ## Lastly, sort the data by timestamp (to get oldest patches installed first).
 sortedlist = sorted(L, key=itemgetter('timestamp'))
@@ -915,6 +962,9 @@ if not out == "":
     
 # Now we're finally ready to actually start the patching!
 print("Starting patching...")
+# check for login 
+if cuser and cpass:
+    login()
 # For each patch, run the apply_patch() function.
 for a in L:
    uuid = str(a['uuid'])
